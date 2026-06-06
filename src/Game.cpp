@@ -4,6 +4,7 @@
 #include <vector>
 #include "Player.hpp"
 #include "Map.hpp"
+#include "TextureManager.hpp"
 
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
@@ -15,39 +16,39 @@ private:
     MapManager mapManager;
     Player player;
     sf::Clock gameClock;
+    TextureManager textureManager;
 
 void processEvents() {
-    sf::Event event;
-    while (window.pollEvent(event)) {
-        if (event.type == sf::Event::Closed)
-            window.close();
-        
-        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
-            // Hacia dónde mira el jugador en una distancia corta de acción (45 unidades)
-            float lookX = player.pos.x + std::cos(player.angle) * 45.0f;
-            float lookY = player.pos.y + std::sin(player.angle) * 45.0f;
-            int targetX = (int)(lookX) / TILE_SIZE;
-            int targetY = (int)(lookY) / TILE_SIZE;
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                window.close();
+            
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
+                float lookX = player.pos.x + std::cos(player.angle) * 45.0f;
+                float lookY = player.pos.y + std::sin(player.angle) * 45.0f;
+                int targetX = (int)(lookX) / TILE_SIZE;
+                int targetY = (int)(lookY) / TILE_SIZE;
 
-            if (mapManager.isDoor(targetX, targetY)) {
-                mapManager.openDoor(targetX, targetY);
+                if (mapManager.isDoor(targetX, targetY)) {
+                    mapManager.openDoor(targetX, targetY);
+                }
+                else if (mapManager.isSecret(targetX, targetY)) {
+                    mapManager.triggerSecret(targetX, targetY, player.angle);
+                }
             }
-            // 👇 NUEVO: Detectar si activa una pared secreta
-            else if (mapManager.isSecret(targetX, targetY)) {
-                mapManager.triggerSecret(targetX, targetY, player.angle);
-            }
-        }
 
-        if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Tab) {
-            mapManager.showFullMap = !mapManager.showFullMap;
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Tab) {
+                mapManager.showFullMap = !mapManager.showFullMap;
+            }
         }
     }
-}
 
-void update(float deltaTime) {
-    player.update(deltaTime, mapManager);
-    mapManager.updateSecret(deltaTime); // <-- ¡Actualizar la animación física en cada frame!
-}
+    void update(float deltaTime) {
+        player.update(deltaTime, mapManager);
+        mapManager.updateSecret(deltaTime);
+        mapManager.updateDoors(deltaTime, player.pos);
+    }
 
     void drawColumn(int screenX, float distance, float rayAngle, sf::Color color) {
         // Corrección del efecto ojo de pez clásico
@@ -113,42 +114,42 @@ while (!hitWall && distance < maxDistance) {
 
     // 🌟 COMPROBACIÓN DINÁMICA DEL PUSHWALL
     if (mapManager.activeSecret.isActive) {
-        // Calcular la posición exacta del bloque flotante en pixeles mundiales
-        float wallMinX = mapManager.activeSecret.originalX * 64 + mapManager.activeSecret.moveX;
-        float wallMaxX = wallMinX + 64;
-        float wallMinY = mapManager.activeSecret.originalY * 64 + mapManager.activeSecret.moveY;
-        float wallMaxY = wallMinY + 64;
+    float wallMinX = mapManager.activeSecret.originalX * 64 + mapManager.activeSecret.moveX;
+    float wallMaxX = wallMinX + 64;
+    float wallMinY = mapManager.activeSecret.originalY * 64 + mapManager.activeSecret.moveY;
+    float wallMaxY = wallMinY + 64;
 
-        // Si el rayo actual cae dentro del área en movimiento de la caja del secreto
-        if (rayX >= wallMinX && rayX < wallMaxX && rayY >= wallMinY && rayY < wallMaxY) {
-            wallColor = sf::Color(110, 60, 30); // Pintar de un color diferente (ej: Marrón madera secreta)
-            hitWall = true;
-            break;
-        }
+    if (rayX >= wallMinX && rayX < wallMaxX && rayY >= wallMinY && rayY < wallMaxY) {
+        wallColor = sf::Color(110, 115, 120); // 🌟 IGUALADO al color del muro normal (Gris)
+        hitWall = true;
+        break;
     }
+}
 
-    if (testX >= 0 && testX < curLevel->cols && testY >= 0 && testY < curLevel->rows) {
-        int type = curLevel->grid[testY][testX].type;
-        
-        if (type == 1) {
-            wallColor = sf::Color(110, 115, 120);
-            hitWall = true;
-        }
-        else if (type == 2) {
-            wallColor = sf::Color(140, 45, 140);
-            hitWall = true;
-        }
-        else if (type == 3) { // Muro secreto en reposo antes de ser empujado
-            wallColor = sf::Color(100, 105, 110); // Color similar al muro normal para camuflarse
-            hitWall = true;
-        }
-        else if (type == 9) {
-            wallColor = sf::Color(40, 190, 80);
-            hitWall = true;
-        }
-    } else {
+if (testX >= 0 && testX < curLevel->cols && testY >= 0 && testY < curLevel->rows) {
+    int type = curLevel->grid[testY][testX].type;
+    
+    if (type == 1) {
+        wallColor = sf::Color(110, 115, 120); // Muro normal
         hitWall = true;
     }
+    else if (type == 2) {
+        if (!curLevel->grid[testY][testX].isOpen) {
+            wallColor = sf::Color(140, 45, 140); // Puerta violeta
+            hitWall = true;
+        }
+    }
+    else if (type == 3) { 
+        wallColor = sf::Color(110, 115, 120); // 🌟 IGUALADO al color del muro normal (Gris)
+        hitWall = true;
+    }
+    else if (type == 9) {
+        wallColor = sf::Color(40, 190, 80); // Salida verde
+        hitWall = true;
+    }
+} else {
+    hitWall = true;
+}
 }
 
             if (hitWall && distance < maxDistance) {
@@ -179,12 +180,20 @@ while (!hitWall && distance < maxDistance) {
 
 public:
     Game() : 
-        window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Wolfenstein 3D Engine"),
-        player(sf::Vector2f(96.0f, 96.0f)) 
-    {
-        window.setFramerateLimit(60);
-        player.pos = mapManager.getCurrentLevel()->spawnPoint;
+    window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Wolfenstein 3D Engine"),
+    player(sf::Vector2f(96.0f, 96.0f)),
+    textureManager(64)
+{
+    window.setFramerateLimit(60);
+    player.pos = mapManager.getCurrentLevel()->spawnPoint;
+    
+    // 🌟 Mensaje de diagnóstico para comprobar la ruta
+    if (!textureManager.loadTextures("CASTLEBRICKS.png")) {
+        std::cerr << "🛑 ERROR: No se encontro 'CASTLEBRICKS.png'. Verifica que este en la raiz del proyecto." << std::endl;
+    } else {
+        std::cout << "✅ EXITO: ¡'CASTLEBRICKS.png' se cargo correctamente desde la raiz!" << std::endl;
     }
+}
 
     void run() {
         while (window.isOpen()) {

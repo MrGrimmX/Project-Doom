@@ -7,14 +7,17 @@ Player::Player(sf::Vector2f startPos) {
 }
 
 void Player::update(float deltaTime, MapManager& mapManager) {
-    float moveSpeed = 180.0f * deltaTime; // Un poco más rápido para acción rápida
+    float moveSpeed = 180.0f * deltaTime;
     float rotSpeed = 3.5f * deltaTime;
 
+    // 1. Manejo de la rotación de la cámara
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) angle -= rotSpeed;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) angle += rotSpeed;
 
+    // 2. Guardar posición previa antes de aplicar el movimiento
     sf::Vector2f oldPos = pos;
 
+    // 3. Calcular posición tentativa
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
         pos.x += std::cos(angle) * moveSpeed;
         pos.y += std::sin(angle) * moveSpeed;
@@ -24,22 +27,20 @@ void Player::update(float deltaTime, MapManager& mapManager) {
         pos.y -= std::sin(angle) * moveSpeed;
     }
 
+    // 4. Mapear las coordenadas flotantes a celdas enteras del mapa
     int cellX = (int)(pos.x) / 64;
     int cellY = (int)(pos.y) / 64;
-    Level* cur = mapManager.getCurrentLevel();
 
-    // Protección de bordes y colisiones con muros o puertas
-    if (cellX >= 0 && cellX < cur->cols && cellY >= 0 && cellY < cur->rows) {
-        if (cur->grid[cellY][cellX].type == 1 || cur->grid[cellY][cellX].type == 2) {
-            pos = oldPos; // Choca de frente y regresa
-            cellX = (int)(pos.x) / 64;
-            cellY = (int)(pos.y) / 64;
-        }
-    } else {
-        pos = oldPos;
+    // 5. Verificar colisión inteligente (Muros, Puertas cerradas y Secretos en movimiento)
+    if (mapManager.isWall(cellX, cellY)) {
+        pos = oldPos; // Si la celda es sólida, deshacemos el avance
+        
+        // Recalcular celdas con la posición restaurada por seguridad
+        cellX = (int)(pos.x) / 64;
+        cellY = (int)(pos.y) / 64;
     }
 
-    // Si pisa la salida, avanza de nivel
+    // 6. Cambiar de nivel si se pisa la zona de meta
     if (mapManager.isExit(cellX, cellY)) {
         mapManager.nextLevel();
         pos = mapManager.getCurrentLevel()->spawnPoint;
