@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <algorithm>
 #include "Player.hpp"
 #include "Map.hpp"
 #include "TextureManager.hpp"
@@ -18,7 +19,7 @@ private:
     sf::Clock gameClock;
     TextureManager textureManager;
 
-void processEvents() {
+    void processEvents() {
         sf::Event event;
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed)
@@ -50,150 +51,143 @@ void processEvents() {
         mapManager.updateDoors(deltaTime, player.pos);
     }
 
-    void drawColumn(int screenX, float distance, float rayAngle, sf::Color color) {
-        // Corrección del efecto ojo de pez clásico
-        float correctedDistance = distance * std::cos(rayAngle - player.angle);
-        if (correctedDistance < 1.0f) correctedDistance = 1.0f;
-
-        // Proyección clásica de Wolfenstein 3D
-        int wallHeight = (int)(SCREEN_HEIGHT * TILE_SIZE / correctedDistance);
-
-        int finalTop = (SCREEN_HEIGHT / 2) - (wallHeight / 2);
-        int finalBottom = (SCREEN_HEIGHT / 2) + (wallHeight / 2);
-
-        if (finalTop < 0) finalTop = 0;
-        if (finalBottom >= SCREEN_HEIGHT) finalBottom = SCREEN_HEIGHT - 1;
-
-        // Sombreado realista por distancia
-        float shadow = 1.0f - (distance / 750.0f);
-        if (shadow < 0.0f) shadow = 0.0f;
-        color.r = (sf::Uint8)(color.r * shadow);
-        color.g = (sf::Uint8)(color.g * shadow);
-        color.b = (sf::Uint8)(color.b * shadow);
-
-        sf::Vertex line[] = {
-            sf::Vertex(sf::Vector2f((float)screenX, (float)finalTop), color),
-            sf::Vertex(sf::Vector2f((float)screenX, (float)finalBottom), color)
-        };
-        window.draw(line, 2, sf::Lines);
-    }
-
     void renderRaycast() {
+        float fov = 60.0f * (3.14159265f / 180.0f);
+        float halfFov = fov / 2.0f;
+        int numRays = SCREEN_WIDTH;
+        float deltaAngle = fov / (float)numRays;
+
         Level* curLevel = mapManager.getCurrentLevel();
-        float fov = 60.0f * 3.14159265f / 180.0f;
-        float startAngle = player.angle - fov / 2.0f;
-        float angleStep = fov / (float)SCREEN_WIDTH;
 
-        // Render de cielo y suelo fijos
-        sf::RectangleShape sky(sf::Vector2f((float)SCREEN_WIDTH, (float)SCREEN_HEIGHT / 2));
-        sky.setFillColor(sf::Color(40, 40, 40)); // Techo oscuro estilo mazmorra
-        sf::RectangleShape floorRect(sf::Vector2f((float)SCREEN_WIDTH, (float)SCREEN_HEIGHT / 2));
-        floorRect.setPosition(0, (float)SCREEN_HEIGHT / 2);
-        floorRect.setFillColor(sf::Color(70, 70, 70)); // Suelo cemento
-        window.draw(sky);
-        window.draw(floorRect);
-
-        for (int i = 0; i < SCREEN_WIDTH; i++) {
-            float rayAngle = startAngle + (float)i * angleStep;
+        for (int i = 0; i < numRays; i++) {
+            float rayAngle = (player.angle - halfFov) + (float)i * deltaAngle;
             float cosRay = std::cos(rayAngle);
             float sinRay = std::sin(rayAngle);
 
             float distance = 0.0f;
-            float maxDistance = 800.0f;
-            float stepSize = 1.5f; // Mayor precisión de rayo para Wolfenstein
+            float stepSize = 1.0f; 
             bool hitWall = false;
-            sf::Color wallColor;
+            int wallType = 1;      
+            
+            float rayX = player.pos.x;
+            float rayY = player.pos.y;
 
-while (!hitWall && distance < maxDistance) {
-    distance += stepSize;
-    float rayX = player.pos.x + cosRay * distance;
-    float rayY = player.pos.y + sinRay * distance;
+            while (!hitWall && distance < 800.0f) {
+                distance += stepSize;
+                rayX = player.pos.x + cosRay * distance;
+                rayY = player.pos.y + sinRay * distance;
 
-    int testX = (int)(rayX) / TILE_SIZE;
-    int testY = (int)(rayY) / TILE_SIZE;
+                int testX = (int)(rayX) / TILE_SIZE;
+                int testY = (int)(rayY) / TILE_SIZE;
 
-    // 🌟 COMPROBACIÓN DINÁMICA DEL PUSHWALL
-    if (mapManager.activeSecret.isActive) {
-    float wallMinX = mapManager.activeSecret.originalX * 64 + mapManager.activeSecret.moveX;
-    float wallMaxX = wallMinX + 64;
-    float wallMinY = mapManager.activeSecret.originalY * 64 + mapManager.activeSecret.moveY;
-    float wallMaxY = wallMinY + 64;
+                if (mapManager.activeSecret.isActive) {
+                    float wallMinX = mapManager.activeSecret.originalX * 64 + mapManager.activeSecret.moveX;
+                    float wallMaxX = wallMinX + 64;
+                    float wallMinY = mapManager.activeSecret.originalY * 64 + mapManager.activeSecret.moveY;
+                    float wallMaxY = wallMinY + 64;
 
-    if (rayX >= wallMinX && rayX < wallMaxX && rayY >= wallMinY && rayY < wallMaxY) {
-        wallColor = sf::Color(110, 115, 120); // 🌟 IGUALADO al color del muro normal (Gris)
-        hitWall = true;
-        break;
-    }
-}
+                    if (rayX >= wallMinX && rayX < wallMaxX && rayY >= wallMinY && rayY < wallMaxY) {
+                        wallType = 3; 
+                        hitWall = true;
+                        break;
+                    }
+                }
 
-if (testX >= 0 && testX < curLevel->cols && testY >= 0 && testY < curLevel->rows) {
-    int type = curLevel->grid[testY][testX].type;
-    
-    if (type == 1) {
-        wallColor = sf::Color(110, 115, 120); // Muro normal
-        hitWall = true;
-    }
-    else if (type == 2) {
-        if (!curLevel->grid[testY][testX].isOpen) {
-            wallColor = sf::Color(140, 45, 140); // Puerta violeta
-            hitWall = true;
-        }
-    }
-    else if (type == 3) { 
-        wallColor = sf::Color(110, 115, 120); // 🌟 IGUALADO al color del muro normal (Gris)
-        hitWall = true;
-    }
-    else if (type == 9) {
-        wallColor = sf::Color(40, 190, 80); // Salida verde
-        hitWall = true;
-    }
-} else {
-    hitWall = true;
-}
-}
-
-            if (hitWall && distance < maxDistance) {
-                drawColumn(i, distance, rayAngle, wallColor);
+                if (testX >= 0 && testX < curLevel->cols && testY >= 0 && testY < curLevel->rows) {
+                    int type = curLevel->grid[testY][testX].type;
+                    if (type == 1 || type == 3 || type == 9) {
+                        wallType = type;
+                        hitWall = true;
+                    }
+                    else if (type == 2 && !curLevel->grid[testY][testX].isOpen) {
+                        wallType = type;
+                        hitWall = true;
+                    }
+                } else {
+                    hitWall = true; 
+                }
             }
+
+            // --- CÁLCULO DE PROYECCIÓN VERTICAL ---
+            float correctedDistance = distance * std::cos(rayAngle - player.angle);
+            if (correctedDistance < 1.0f) correctedDistance = 1.0f; 
+
+            int wallHeight = (int)((TILE_SIZE * SCREEN_HEIGHT) / correctedDistance);
+            int drawStart = (SCREEN_HEIGHT / 2) - (wallHeight / 2);
+            int drawEnd = (SCREEN_HEIGHT / 2) + (wallHeight / 2);
+
+            int screenDrawStart = std::max(0, drawStart);
+            int screenDrawEnd = std::min(SCREEN_HEIGHT - 1, drawEnd);
+
+            // --- MAPEO HORIZONTAL (TEX_X) ---
+            int blockX = (int)rayX % TILE_SIZE;
+            int blockY = (int)rayY % TILE_SIZE;
+            int texX = 0;
+
+            if (std::abs(blockX - 0) < 2 || std::abs(blockX - 63) < 2) {
+                texX = blockY;
+            } else {
+                texX = blockX;
+            }
+            texX = std::max(0, std::min(texX, TILE_SIZE - 1));
+
+            // --- REBANADO VERTICAL (TEX_Y) ---
+            sf::VertexArray wallSlice(sf::Points, screenDrawEnd - screenDrawStart);
+            int vertexCounter = 0;
+
+            for (int y = screenDrawStart; y < screenDrawEnd; y++) {
+                // Relación flotante exacta para mapear la textura de techo a suelo sin cortes
+                float texYRatio = (float)(y - drawStart) / (float)wallHeight;
+                int texY = (int)(texYRatio * textureManager.getTextureSize());
+                texY = std::max(0, std::min(texY, textureManager.getTextureSize() - 1));
+
+                sf::Color pixelColor = textureManager.getPixelColor(wallType, texX, texY);
+
+                // Sombreado dinámico por distancia (Faux-3D depth)
+                if (correctedDistance > 150.0f) {
+                    float shadow = 1.0f - (correctedDistance / 750.0f);
+                    if (shadow < 0.15f) shadow = 0.15f;
+                    pixelColor.r = (sf::Uint8)(pixelColor.r * shadow);
+                    pixelColor.g = (sf::Uint8)(pixelColor.g * shadow);
+                    pixelColor.b = (sf::Uint8)(pixelColor.b * shadow);
+                }
+
+                wallSlice[vertexCounter].position = sf::Vector2f((float)i, (float)y);
+                wallSlice[vertexCounter].color = pixelColor;
+                vertexCounter++;
+            }
+
+            window.draw(wallSlice);
         }
     }
 
     void render() {
-        window.clear();
+        window.clear(sf::Color(40, 40, 40)); 
+        
+        renderRaycast();
+
         if (mapManager.showFullMap) {
             mapManager.drawFullMap(window);
-            
-            // Dibujar jugador en el mapa
-            sf::CircleShape pDot(5);
-            pDot.setFillColor(sf::Color::Red);
-            pDot.setOrigin(5, 5);
-            Level* cur = mapManager.getCurrentLevel();
-            float startX = (window.getSize().x - (cur->cols * 32)) / 2.0f;
-            float startY = (window.getSize().y - (cur->rows * 32)) / 2.0f;
-            pDot.setPosition(startX + (player.pos.x / 64.0f) * 32.0f, startY + (player.pos.y / 64.0f) * 32.0f);
-            window.draw(pDot);
-        } else {
-            renderRaycast();
         }
+
         window.display();
     }
 
 public:
     Game() : 
-    window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Wolfenstein 3D Engine"),
-    player(sf::Vector2f(96.0f, 96.0f)),
-    textureManager(64)
-{
-    window.setFramerateLimit(60);
-    player.pos = mapManager.getCurrentLevel()->spawnPoint;
-    
-    // 🌟 Mensaje de diagnóstico para comprobar la ruta
-    if (!textureManager.loadTextures("CASTLEBRICKS.png")) {
-        std::cerr << "🛑 ERROR: No se encontro 'CASTLEBRICKS.png'. Verifica que este en la raiz del proyecto." << std::endl;
-    } else {
-        std::cout << "✅ EXITO: ¡'CASTLEBRICKS.png' se cargo correctamente desde la raiz!" << std::endl;
+        window(sf::VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Wolfenstein 3D Engine - CETI"),
+        player(sf::Vector2f(96.0f, 96.0f)),
+        textureManager(64)
+    {
+        window.setFramerateLimit(60);
+        player.pos = mapManager.getCurrentLevel()->spawnPoint;
+        
+        if (!textureManager.loadTextures("../assets/texturas/CASTLEBRICKS.png")) {
+            std::cerr << "🛑 Alerta: No se pudo cargar ../assets/texturas/CASTLEBRICKS.png" << std::endl;
+        } else {
+            std::cout << "✅ Exito: Texturas cargadas correctamente." << std::endl;
+        }
     }
-}
 
     void run() {
         while (window.isOpen()) {
