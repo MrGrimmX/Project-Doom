@@ -1,23 +1,36 @@
 #include "Player.hpp"
 #include <cmath>
 
-Player::Player(sf::Vector2f startPos) {
+int health = 100;
+int ammo = 50;
+int score = 0;
+int lives = 3;
+bool blueKey = false;
+bool goldKey = false;
+
+Player::Player(sf::Vector2f startPos)
+{
     pos = startPos;
     angle = 0.0f;
+
+    health = 100;
+    ammo = 50;
+    score = 0;
+    lives = 3;
 }
 
 void Player::update(float deltaTime, MapManager& mapManager) {
-    float moveSpeed = 180.0f * deltaTime;
-    float rotSpeed = 3.5f * deltaTime;
+    float baseSpeed = 180.0f;
 
-    // 1. Manejo de la rotación de la cámara
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) angle -= rotSpeed;
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) angle += rotSpeed;
+if(sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
+{
+    baseSpeed = 300.0f;
+}
 
-    // 2. Guardar posición previa antes de aplicar el movimiento
+float moveSpeed = baseSpeed * deltaTime;
+
     sf::Vector2f oldPos = pos;
 
-    // 3. Calcular posición tentativa
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
         pos.x += std::cos(angle) * moveSpeed;
         pos.y += std::sin(angle) * moveSpeed;
@@ -25,6 +38,16 @@ void Player::update(float deltaTime, MapManager& mapManager) {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
         pos.x -= std::cos(angle) * moveSpeed;
         pos.y -= std::sin(angle) * moveSpeed;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+    {
+        pos.x += std::cos(angle - 1.570796f) * moveSpeed;
+        pos.y += std::sin(angle - 1.570796f) * moveSpeed;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+    {
+        pos.x += std::cos(angle + 1.570796f) * moveSpeed;
+        pos.y += std::sin(angle + 1.570796f) * moveSpeed;
     }
 
     // 4. Mapear las coordenadas flotantes a celdas enteras del mapa

@@ -1,24 +1,33 @@
-#pragma once
+#ifndef GAME_HPP
+#define GAME_HPP
+
 #include <SFML/Graphics.hpp>
-#include "Map.hpp"
 #include "Player.hpp"
+#include "Map.hpp"
+#include "TextureManager.hpp"
+#include "Menu.hpp"
 
 class Game {
 private:
     sf::RenderWindow window;
     MapManager mapManager;
     Player player;
-    
-    const int SCREEN_WIDTH = 800;
-    const int SCREEN_HEIGHT = 600;
-    const float FOV = 3.14159f / 3.0f;
-    const float MAX_DEPTH = 1500.0f;
+    sf::Clock gameClock;
+    TextureManager textureManager;
+    Menu menu;
+    GameState gameState;
+    sf::Font hudFont;
 
     void processEvents();
     void update(float deltaTime);
+    void render();
     void renderRaycast();
-
+    void renderHUD();
+    
 public:
     Game();
+    ~Game();
     void run();
 };
+
+#endif
