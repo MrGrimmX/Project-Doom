@@ -14,7 +14,6 @@ Player::Player(sf::Vector2f startPos)
     pistolAmmo = 50;
     akAmmo = 120;
     shotgunAmmo = 30;
-    cannonAmmo = 10;
     sksAmmo = 80;
     uziAmmo = 200;
     score = 0;
@@ -22,11 +21,15 @@ Player::Player(sf::Vector2f startPos)
 
     currentWeapon = WeaponType::Pistol;
 
-        pistol.texture.loadFromFile("assets/weapons/Pistol.png");
+    pistol.texture.loadFromFile("assets/weapons/Pistol.png");
     pistol.sprite.setTexture(pistol.texture);
     pistol.frameWidth = 320;
     pistol.frameHeight = 180;
     pistol.totalFrames = 4;
+    pistol.fireRate = 0.30f;
+    pistol.automatic = false;
+    pistol.animationSpeed = 0.06f;
+    pistol.damage = 15;
     pistol.sprite.setTextureRect(sf::IntRect(0,0,320,180));
 
     // AK
@@ -35,6 +38,10 @@ Player::Player(sf::Vector2f startPos)
     ak.frameWidth = 320;
     ak.frameHeight = 180;
     ak.totalFrames = 4;
+    ak.fireRate = 0.10f;
+    ak.automatic = true;
+    ak.animationSpeed = 0.05f;
+    ak.damage = 30;
     ak.sprite.setTextureRect(sf::IntRect(0,0,320,180));
 
     // SHOTGUN
@@ -43,15 +50,11 @@ Player::Player(sf::Vector2f startPos)
     shotgun.frameWidth = 320;
     shotgun.frameHeight = 180;
     shotgun.totalFrames = 6;
+    shotgun.fireRate = 0.90f;
+    shotgun.automatic = false;
+    shotgun.animationSpeed = 0.10f;
+    shotgun.damage = 50;
     shotgun.sprite.setTextureRect(sf::IntRect(0,0,320,180));
-
-    // CANON
-    cannon.texture.loadFromFile("assets/weapons/Cannon.png");
-    cannon.sprite.setTexture(cannon.texture);
-    cannon.frameWidth = 320;
-    cannon.frameHeight = 180;
-    cannon.totalFrames = 17;
-    cannon.sprite.setTextureRect(sf::IntRect(0,0,320,180));
 
     // SKS
     sks.texture.loadFromFile("assets/weapons/SKS.png");
@@ -59,6 +62,10 @@ Player::Player(sf::Vector2f startPos)
     sks.frameWidth = 320;
     sks.frameHeight = 180;
     sks.totalFrames = 12;
+    sks.fireRate = 0.70f;
+    sks.automatic = false;
+    sks.animationSpeed = 0.09f;
+    sks.damage = 60;
     sks.sprite.setTextureRect(sf::IntRect(0,0,320,180));
 
     // UZI
@@ -67,6 +74,10 @@ Player::Player(sf::Vector2f startPos)
     uzi.frameWidth = 320;
     uzi.frameHeight = 180;
     uzi.totalFrames = 4;
+    uzi.fireRate = 0.06f;
+    uzi.automatic = true;
+    uzi.animationSpeed = 0.04f;
+    uzi.damage = 20;
     uzi.sprite.setTextureRect(sf::IntRect(0,0,320,180));
 }
 
@@ -82,9 +93,6 @@ int Player::getCurrentAmmo() const
 
         case WeaponType::Shotgun:
             return shotgunAmmo;
-
-        case WeaponType::Cannon:
-            return cannonAmmo;
 
         case WeaponType::SKS:
             return sksAmmo;
@@ -109,9 +117,6 @@ Weapon* Player::getCurrentWeapon()
         case WeaponType::Shotgun:
             return &shotgun;
 
-        case WeaponType::Cannon:
-            return &cannon;
-
         case WeaponType::SKS:
             return &sks;
 
@@ -121,7 +126,53 @@ Weapon* Player::getCurrentWeapon()
 
     return &pistol;
 }
+bool Player::consumeAmmo()
+{
+    switch(currentWeapon)
+    {
+        case WeaponType::Pistol:
+            if(pistolAmmo > 0)
+            {
+                pistolAmmo--;
+                return true;
+            }
+            break;
 
+        case WeaponType::AK:
+            if(akAmmo > 0)
+            {
+                akAmmo--;
+                return true;
+            }
+            break;
+
+        case WeaponType::Shotgun:
+            if(shotgunAmmo > 0)
+            {
+                shotgunAmmo--;
+                return true;
+            }
+            break;
+
+        case WeaponType::SKS:
+            if(sksAmmo > 0)
+            {
+                sksAmmo--;
+                return true;
+            }
+            break;
+
+        case WeaponType::Uzi:
+            if(uziAmmo > 0)
+            {
+                uziAmmo--;
+                return true;
+            }
+            break;
+    }
+
+    return false;
+}
 void Player::switchWeapon(WeaponType newWeapon)
 {
     currentWeapon = newWeapon;
@@ -169,11 +220,5 @@ float moveSpeed = baseSpeed * deltaTime;
         // Recalcular celdas con la posición restaurada por seguridad
         cellX = (int)(pos.x) / 64;
         cellY = (int)(pos.y) / 64;
-    }
-
-    // 6. Cambiar de nivel si se pisa la zona de meta
-    if (mapManager.isExit(cellX, cellY)) {
-        mapManager.nextLevel();
-        pos = mapManager.getCurrentLevel()->spawnPoint;
     }
 }

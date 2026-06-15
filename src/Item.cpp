@@ -58,10 +58,6 @@ void Item::apply(Player& player)
                 player.shotgunAmmo += value;
                 break;
 
-            case AmmoType::Cannon:
-                player.cannonAmmo += value;
-                break;
-
             case AmmoType::SKS:
                 player.sksAmmo += value;
                 break;

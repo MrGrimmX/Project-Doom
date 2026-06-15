@@ -69,14 +69,10 @@ void Game::processEvents()
                         break;
 
                     case sf::Keyboard::Num4:
-                        player.switchWeapon(WeaponType::Cannon);
-                        break;
-
-                    case sf::Keyboard::Num5:
                         player.switchWeapon(WeaponType::SKS);
                         break;
 
-                    case sf::Keyboard::Num6:
+                    case sf::Keyboard::Num5:
                         player.switchWeapon(WeaponType::Uzi);
                         break;
 
@@ -112,19 +108,41 @@ void Game::processEvents()
             }
 
             // MOUSE (FUERA DEL SWITCH)
-            if (event.type == sf::Event::MouseButtonPressed)
-            {
-                if (event.mouseButton.button == sf::Mouse::Left)
-                {
-                    player.getCurrentWeapon()->shoot();
-                }
-            }
+Weapon* weapon = player.getCurrentWeapon();
+
+bool mouse = sf::Mouse::isButtonPressed(sf::Mouse::Left);
+
+if (weapon->automatic)
+{
+    if (mouse)
+    {
+        if (player.consumeAmmo())
+        {
+            weapon->shoot();
         }
     }
 }
+else
+{
+    static bool lastMouse = false;
+
+    if (mouse && !lastMouse)
+    {
+        if (player.consumeAmmo())
+        {
+            weapon->shoot();
+        }
+    }
+
+    lastMouse = mouse;
+}
+        } // GAME_RUNNING
+    } // while
+} // processEvents
 
 void Game::update(float deltaTime) {
     if (gameState == GAME_RUNNING) {
+    player.update(deltaTime, mapManager);
         player.update(deltaTime, mapManager);
         player.getCurrentWeapon()->update(deltaTime);
         sf::Vector2i center(

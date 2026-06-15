@@ -24,7 +24,6 @@ enum class ItemVariant
     AMMO_PISTOL,
     AMMO_AK,
     AMMO_SHOTGUN,
-    AMMO_CANNON,
     AMMO_SKS,
     AMMO_UZI
 };
@@ -34,7 +33,6 @@ enum class AmmoType
     Pistol,
     AK,
     Shotgun,
-    Cannon,
     SKS,
     Uzi
 };

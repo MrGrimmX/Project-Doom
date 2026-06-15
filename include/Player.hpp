@@ -14,21 +14,19 @@ public:
     // Estadísticas del jugador
     int health = 100;
     int armor = 0;
-
     int pistolAmmo = 50;
     int akAmmo = 60;
     int shotgunAmmo = 30;
-    int cannonAmmo = 5;
     int sksAmmo = 20;
     int uziAmmo = 120;
     int score;
     int lives;
+    bool consumeAmmo();
     int getCurrentAmmo() const;
     
     Weapon pistol;
     Weapon ak;
     Weapon shotgun;
-    Weapon cannon;
     Weapon sks;
     Weapon uzi;
 

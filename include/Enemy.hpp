@@ -1,41 +1,42 @@
 #pragma once
-
 #include <SFML/Graphics.hpp>
-
-enum EnemyState
+#include "Map.hpp"
+enum class EnemyType
 {
-    IDLE,
-    WALK,
-    ATTACK,
-    HURT,
-    DEAD
+    Grunt,
+    Merc,
+    Recruit,
+    Trooper,
+    Heavy,
+    Cobra,
+    Insect,
+    Mutant,
+    Robot
 };
 
 class Enemy
 {
 public:
-    Enemy(float x, float y);
 
-    void update(float deltaTime);
-    void takeDamage(int damage);
+    EnemyType type;
 
-    sf::Sprite sprite;
-
-    float posX;
-    float posY;
-
-    bool isAlive() const;
-
-private:
     sf::Texture texture;
-
-    EnemyState state;
-
+    sf::Sprite sprite;
+    sf::Vector2f pos;
     int health;
-
+    int damage;
+    int frameWidth;
+    int frameHeight;
+    int totalFrames;
     int currentFrame;
+    float animationSpeed;
     float animationTimer;
-    float frameDuration;
+    float speed;
+    bool alive;
 
-    void updateAnimation();
+    Enemy();
+    void load(EnemyType t);
+    void update(float dt, sf::Vector2f playerPos, MapManager& mapManager);
+    void draw(sf::RenderWindow& window);
+    void takeDamage(int dmg);
 };
